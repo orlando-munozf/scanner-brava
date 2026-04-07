@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scanner Brava — Diagnóstico Comercial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root {
+  --bg: #060c06;
+  --surface: #0c150c;
+  --card: #111a11;
+  --card-hover: #162016;
+  --border: #1d2e1d;
+  --border-bright: #2d472d;
+  --green: #22c55e;
+  --green-dim: #16a34a;
+  --green-glow: rgba(34,197,94,0.12);
+  --green-glow-strong: rgba(34,197,94,0.22);
+  --text-1: #f0fdf4;
+  --text-2: #b8d8b8;
+  --text-3: #6a9a6a;
+  --text-4: #3a5a3a;
+  --red: #f87171;
+  --red-bg: rgba(248,113,113,0.10);
+  --yellow: #fbbf24;
+  --yellow-bg: rgba(251,191,36,0.10);
+  --r: 6px;
+  --rl: 10px;
+  --t: 0.14s ease;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text-1);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6;min-height:100vh;overflow-x:hidden;}
+.screen{display:none;}
+.screen.active{display:flex;}
+
+/* ─── SETUP ─────────────────────────────── */
+#s-setup{min-height:100vh;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;background:radial-gradient(ellipse at 50% 30%,rgba(34,197,94,0.07) 0%,transparent 65%);}
+.setup-box{width:100%;max-width:460px;}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:48px;}
+.brand-hex{width:34px;height:34px;background:var(--green);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);display:flex;align-items:center;justify-content:center;}
+.brand-hex svg{width:16px;height:16px;}
+.brand-name{font-family:'DM Serif Display',serif;font-size:20px;letter-spacing:-0.3px;}
+.brand-name b{color:var(--green);}
+.setup-h{font-family:'DM Serif Display',serif;font-size:30px;line-height:1.2;margin-bottom:6px;}
+.setup-sub{color:var(--text-3);font-size:13px;margin-bottom:36px;}
+.fg{margin-bottom:18px;}
+.fl{display:block;font-size:10px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin-bottom:7px;}
+.fi{width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;color:var(--text-1);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;transition:border-color var(--t),box-shadow var(--t);}
+.fi:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+.fi::placeholder{color:var(--text-4);}
+.fh{font-size:11px;color:var(--text-4);margin-top:5px;}
+.fh a{color:var(--green);text-decoration:none;}
+.fhr{border:none;border-top:1px solid var(--border);margin:24px 0;}
+.sec-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:14px;}
+.btn-go{width:100%;background:var(--green);color:#060c06;border:none;border-radius:var(--r);padding:13px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all var(--t);margin-top:6px;}
+.btn-go:hover{background:#4ade80;transform:translateY(-1px);box-shadow:0 4px 20px var(--green-glow-strong);}
+
+/* ─── SESSION ────────────────────────────── */
+#s-session{min-height:100vh;flex-direction:column;}
+.topbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;position:sticky;top:0;z-index:100;flex-shrink:0;}
+.tb-brand{font-family:'DM Serif Display',serif;font-size:15px;flex-shrink:0;}
+.tb-brand b{color:var(--green);}
+.tb-div{width:1px;height:18px;background:var(--border);flex-shrink:0;}
+.tb-client{flex:1;min-width:0;}
+.tb-cname{font-size:12px;font-weight:500;color:var(--text-1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tb-cmeta{font-size:10px;color:var(--text-4);}
+.tb-prog{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.prog-track{width:110px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width .35s ease;}
+.prog-pct{font-size:11px;color:var(--text-3);min-width:28px;text-align:right;}
+.s-body{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px);}
+
+/* sidebar */
+.sidebar{width:216px;background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:14px 0;}
+.sb-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);padding:0 14px;margin-bottom:6px;margin-top:14px;}
+.sb-label:first-child{margin-top:0;}
+.sb-item{display:flex;align-items:center;gap:9px;padding:7px 10px;margin:0 6px;border-radius:var(--r);cursor:pointer;transition:all var(--t);border:1px solid transparent;}
+.sb-item:hover{background:var(--card-hover);}
+.sb-item.active{background:var(--green-glow);border-color:rgba(34,197,94,.18);}
+.sb-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--border);transition:background var(--t);}
+.sb-dot.complete{background:var(--green);}
+.sb-dot.partial{background:var(--yellow);}
+.sb-dot.act{background:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+.sb-info{flex:1;min-width:0;}
+.sb-name{font-size:11px;font-weight:500;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-item.active .sb-name{color:var(--green);}
+.sb-cnt{font-size:10px;color:var(--text-4);}
+
+/* main */
+.main{flex:1;overflow-y:auto;padding:30px 36px 20px;}
+.mod-header{margin-bottom:28px;}
+.mod-tag{display:inline-flex;align-items:center;gap:5px;background:var(--green-glow);border:1px solid rgba(34,197,94,.2);border-radius:20px;padding:3px 10px;font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--green);margin-bottom:10px;}
+.mod-title{font-family:'DM Serif Display',serif;font-size:26px;color:var(--text-1);margin-bottom:4px;}
+.mod-sub{color:var(--text-3);font-size:12px;}
+.mod-wt{display:inline-block;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:10px;color:var(--text-4);margin-top:6px;}
+
+/* questions */
+.q-list{display:flex;flex-direction:column;gap:14px;}
+.q-card{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:15px 18px;transition:border-color var(--t);}
+.q-card:hover{border-color:var(--border-bright);}
+.q-card.answered{border-color:rgba(34,197,94,.2);}
+.q-hd{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px;}
+.q-num{font-size:10px;font-weight:700;color:var(--text-4);background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:2px 6px;flex-shrink:0;margin-top:1px;font-variant-numeric:tabular-nums;}
+.q-txt{font-size:13px;font-weight:500;color:var(--text-1);line-height:1.5;}
+.bin-opts{display:flex;gap:8px;}
+.bin-btn{flex:1;padding:9px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--text-3);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all var(--t);display:flex;align-items:center;justify-content:center;gap:5px;}
+.bin-btn:hover{border-color:var(--border-bright);color:var(--text-2);}
+.bin-btn.sel-y{background:rgba(34,197,94,.1);border-color:var(--green);color:var(--green);}
+.bin-btn.sel-n{background:var(--red-bg);border-color:var(--red);color:var(--red);}
+.sc-opts{display:flex;gap:5px;}
+.sc-btn{flex:1;padding:9px 4px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);color:var(--text-3);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all var(--t);text-align:center;}
+.sc-btn:hover{border-color:var(--border-bright);color:var(--text-2);}
+.sc-btn.sel{background:var(--green-glow);border-color:var(--green);color:var(--green);}
+.sc-lbls{display:flex;justify-content:space-between;margin-top:5px;}
+.sc-lbl{font-size:10px;color:var(--text-4);max-width:140px;}
+.sc-lbl:last-child{text-align:right;}
+.qual-badge{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;margin-bottom:12px;}
+.qual-badge.green{background:var(--green-glow);border:1px solid rgba(34,197,94,.2);color:var(--green);}
+.qual-badge.yellow{background:var(--yellow-bg);border:1px solid rgba(251,191,36,.25);color:var(--yellow);}
+.qual-ta{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;color:var(--text-1);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6;resize:vertical;min-height:90px;outline:none;transition:border-color var(--t),box-shadow var(--t);}
+.qual-ta:focus{border-color:var(--green);box-shadow:0 0 0 3px var(--green-glow);}
+.qual-hint{font-size:11px;color:var(--text-4);margin-top:5px;font-style:italic;}
+
+/* bottom nav */
+.bot-nav{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border);padding:12px 36px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.btn-nav{display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:var(--r);border:1px solid var(--border);background:var(--card);color:var(--text-2);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all var(--t);}
+.btn-nav:hover{border-color:var(--border-bright);color:var(--text-1);}
+.btn-nav:disabled{opacity:.3;cursor:not-allowed;pointer-events:none;}
+.btn-gen{background:var(--green);color:#060c06;border-color:var(--green);font-weight:600;}
+.btn-gen:hover{background:#4ade80;box-shadow:0 4px 18px var(--green-glow-strong);color:#060c06;}
+.nav-mid{font-size:11px;color:var(--text-4);}
+.nav-mid b{color:var(--text-3);}
+
+/* ─── LOADING ────────────────────────────── */
+#s-loading{min-height:100vh;flex-direction:column;align-items:center;justify-content:center;gap:22px;background:radial-gradient(ellipse at 50% 50%,rgba(34,197,94,.05) 0%,transparent 65%);}
+.ld-brand{font-family:'DM Serif Display',serif;font-size:18px;}
+.ld-brand b{color:var(--green);}
+.ld-spin{width:36px;height:36px;border:2px solid var(--border);border-top-color:var(--green);border-radius:50%;animation:spin .75s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.ld-txt{font-size:13px;color:var(--text-3);text-align:center;}
+.ld-steps{display:flex;flex-direction:column;gap:7px;max-width:280px;}
+.ld-step{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--text-4);transition:color .3s;}
+.ld-step.done{color:var(--green);}
+.ld-step.act{color:var(--text-2);}
+.ld-sdot{width:5px;height:5px;border-radius:50%;background:var(--border);flex-shrink:0;}
+.ld-step.done .ld-sdot{background:var(--green);}
+.ld-step.act .ld-sdot{background:var(--text-2);}
+
+/* ─── RESULTS ────────────────────────────── */
+#s-results{min-height:100vh;flex-direction:column;}
+.res-topbar{height:50px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:14px;position:sticky;top:0;z-index:100;flex-shrink:0;}
+.res-tb-title{font-family:'DM Serif Display',serif;font-size:15px;flex:1;}
+.res-tb-title b{color:var(--green);}
+.btn-dl{display:flex;align-items:center;gap:7px;padding:7px 16px;background:var(--green);color:#060c06;border:none;border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all var(--t);}
+.btn-dl:hover{background:#4ade80;transform:translateY(-1px);box-shadow:0 4px 14px var(--green-glow-strong);}
+.btn-ns{display:flex;align-items:center;gap:7px;padding:7px 14px;background:transparent;color:var(--text-3);border:1px solid var(--border);border-radius:var(--r);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;transition:all var(--t);}
+.btn-ns:hover{color:var(--text-1);border-color:var(--border-bright);}
+.res-body{overflow-y:auto;flex:1;padding:28px 28px 60px;max-width:860px;margin:0 auto;width:100%;}
+
+/* score hero */
+.score-hero{display:flex;gap:20px;margin-bottom:24px;align-items:stretch;}
+.score-main{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:24px 28px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:160px;flex-shrink:0;}
+.score-n{font-family:'DM Serif Display',serif;font-size:58px;line-height:1;}
+.score-n.r{color:var(--red);}
+.score-n.y{color:var(--yellow);}
+.score-n.g{color:var(--green);}
+.score-lbl{font-size:10px;color:var(--text-4);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-top:4px;}
+.score-badge{margin-top:10px;padding:3px 12px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.05em;}
+.score-badge.r{background:var(--red-bg);color:var(--red);}
+.score-badge.y{background:var(--yellow-bg);color:var(--yellow);}
+.score-badge.g{background:var(--green-glow);color:var(--green);}
+.score-summary{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:20px 24px;flex:1;}
+.blk-title{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-4);margin-bottom:10px;}
+.sum-txt{font-size:13px;color:var(--text-2);line-height:1.75;}
+
+/* module scores */
+.mod-scores{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:18px 22px;margin-bottom:20px;}
+.ms-row{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+.ms-row:last-child{margin-bottom:0;}
+.ms-name{font-size:11px;font-weight:500;color:var(--text-2);width:168px;flex-shrink:0;}
+.ms-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden;}
+.ms-fill{height:100%;border-radius:3px;}
+.ms-val{font-size:11px;font-weight:600;width:34px;text-align:right;flex-shrink:0;}
+
+/* findings */
+.findings{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.finding{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--red);border-radius:var(--rl);padding:16px 20px;}
+.finding:nth-child(2){border-left-color:var(--yellow);}
+.finding:nth-child(3){border-left-color:var(--text-3);}
+.f-num{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:6px;}
+.finding:nth-child(2) .f-num{color:var(--yellow);}
+.finding:nth-child(3) .f-num{color:var(--text-3);}
+.f-title{font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:4px;}
+.f-desc{font-size:12px;color:var(--text-3);line-height:1.6;}
+
+/* narrative */
+.narrative{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:20px 24px;margin-bottom:20px;}
+.narr-txt{font-size:13px;color:var(--text-2);line-height:1.8;}
+.narr-txt p{margin-bottom:12px;}
+.narr-txt p:last-child{margin-bottom:0;}
+
+/* action plan */
+.action-plan{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:18px 22px;margin-bottom:20px;}
+.ap-hd{display:grid;grid-template-columns:70px 1fr 110px;gap:10px;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px;}
+.ap-hd-cell{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-4);}
+.ap-row{display:grid;grid-template-columns:70px 1fr 110px;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border);}
+.ap-row:last-child{border-bottom:none;}
+.ap-day{font-size:10px;font-weight:700;color:var(--green);background:var(--green-glow);border-radius:4px;padding:3px 7px;text-align:center;}
+.ap-act{font-size:12px;color:var(--text-2);line-height:1.5;}
+.ap-met{font-size:11px;color:var(--text-4);font-style:italic;line-height:1.4;}
+
+/* next step */
+.next-step{background:linear-gradient(135deg,rgba(34,197,94,.08),transparent);border:1px solid rgba(34,197,94,.22);border-radius:var(--rl);padding:22px 26px;margin-bottom:20px;}
+.ns-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:8px;}
+.ns-prod{font-family:'DM Serif Display',serif;font-size:22px;color:var(--text-1);margin-bottom:6px;}
+.ns-reason{font-size:13px;color:var(--text-3);line-height:1.65;}
+
+/* brava stage */
+.brava-stage{background:var(--card);border:1px solid var(--border);border-radius:var(--rl);padding:16px 22px;margin-bottom:20px;display:flex;gap:16px;align-items:flex-start;}
+.bs-icon{font-size:24px;flex-shrink:0;margin-top:2px;}
+.bs-txt{font-size:12px;color:var(--text-3);line-height:1.6;}
+.bs-txt b{color:var(--text-2);font-weight:600;}
+
+/* error */
+.err-card{background:var(--red-bg);border:1px solid rgba(248,113,113,.25);border-radius:var(--rl);padding:18px 22px;color:var(--red);font-size:13px;line-height:1.6;}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border-bright);border-radius:3px;}
+
+@media(max-width:700px){
+  .sidebar{display:none;}
+  .main{padding:20px;}
+  .bot-nav{padding:10px 20px;}
+  .score-hero{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="screen active" id="s-setup">
+  <div class="setup-box">
+    <div class="brand">
+      <div class="brand-hex">
+        <svg viewBox="0 0 16 16" fill="#060c06"><path d="M8 1l5 3v6l-5 3-5-3V4z"/></svg>
+      </div>
+      <span class="brand-name"><b>Brava</b> Scanner</span>
+    </div>
+    <h1 class="setup-h">Diagnóstico Comercial</h1>
+    <p class="setup-sub">Herramienta de análisis del proceso de ventas para sesiones Scanner de 90 minutos.</p>
+
+    <div class="sec-label">Configuración API</div>
+    <div class="fg">
+      <label class="fl">API Key de Anthropic</label>
+      <input class="fi" type="password" id="inp-key" placeholder="sk-ant-..." autocomplete="off">
+      <div class="fh">Obtén tu key en <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> — se guarda localmente en tu navegador.</div>
+    </div>
+
+    <hr class="fhr">
+
+    <div class="sec-label">Datos del Cliente</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="fg" style="margin-bottom:0;">
+        <label class="fl">Nombre del contacto</label>
+        <input class="fi" type="text" id="inp-name" placeholder="Ej: Carlos Ramírez">
+      </div>
+      <div class="fg" style="margin-bottom:0;">
+        <label class="fl">Empresa</label>
+        <input class="fi" type="text" id="inp-company" placeholder="Ej: Auto Grupo Norte">
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+      <div class="fg" style="margin-bottom:0;">
+        <label class="fl">Industria</label>
+        <select class="fi" id="inp-industry">
+          <option value="">Seleccionar...</option>
+          <option>Agencia automotriz</option>
+          <option>Distribuidora de vehículos</option>
+          <option>Agencia de marketing</option>
+          <option>Consultoría o capacitación</option>
+          <option>Software / Tecnología</option>
+          <option>Servicios profesionales</option>
+          <option>Otra industria</option>
+        </select>
+      </div>
+      <div class="fg" style="margin-bottom:0;">
+        <label class="fl">Vendedores en equipo</label>
+        <select class="fi" id="inp-sellers">
+          <option value="">Seleccionar...</option>
+          <option>Solo el dueño</option>
+          <option>1–2 vendedores</option>
+          <option>3–5 vendedores</option>
+          <option>6–10 vendedores</option>
+          <option>Más de 10</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn-go" style="margin-top:24px;" onclick="startSession()">Iniciar Sesión Scanner →</button>
+  </div>
+</div>
+
+<!-- SESSION -->
+<div class="screen" id="s-session">
+  <div class="topbar">
+    <span class="tb-brand"><b>Brava</b> Scanner</span>
+    <div class="tb-div"></div>
+    <div class="tb-client">
+      <div class="tb-cname" id="tb-client-name">—</div>
+      <div class="tb-cmeta" id="tb-client-meta">—</div>
+    </div>
+    <div class="tb-prog">
+      <div class="prog-track"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      <span class="prog-pct" id="prog-pct">0%</span>
+    </div>
+  </div>
+  <div class="s-body">
+    <div class="sidebar" id="sidebar"></div>
+    <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div class="main" id="main-content"></div>
+      <div class="bot-nav">
+        <button class="btn-nav" id="btn-prev" onclick="navigate(-1)" disabled>← Anterior</button>
+        <span class="nav-mid" id="nav-mid"></span>
+        <button class="btn-nav btn-gen" id="btn-next" onclick="navigate(1)">Siguiente →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div class="screen" id="s-loading">
+  <div class="ld-brand"><b>Brava</b> Scanner</div>
+  <div class="ld-spin"></div>
+  <div class="ld-txt">Analizando el proceso comercial...</div>
+  <div class="ld-steps">
+    <div class="ld-step" id="ld-1"><div class="ld-sdot"></div>Procesando respuestas del diagnóstico</div>
+    <div class="ld-step" id="ld-2"><div class="ld-sdot"></div>Evaluando contra el Modelo BRAVA</div>
+    <div class="ld-step" id="ld-3"><div class="ld-sdot"></div>Identificando fallas críticas</div>
+    <div class="ld-step" id="ld-4"><div class="ld-sdot"></div>Construyendo plan de acción</div>
+    <div class="ld-step" id="ld-5"><div class="ld-sdot"></div>Generando diagnóstico final</div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="screen" id="s-results">
+  <div class="res-topbar">
+    <span class="res-tb-title">Diagnóstico <b>completado</b></span>
+    <button class="btn-ns" onclick="newSession()">+ Nueva sesión</button>
+    <button class="btn-dl" onclick="downloadPDF()">⬇ Descargar PDF</button>
+  </div>
+  <div class="res-body" id="res-body"></div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+const MODULES = [
+  {
+    id:'A', name:'El Negocio', sub:'Contexto base', weight:0.08,
+    questions:[
+      {id:'A1',text:'¿Tiene documentado su modelo de negocio (quién compra, por qué y cómo)?',type:'binary'},
+      {id:'A2',text:'¿Conoce su ticket promedio, costo de adquisición y margen por venta?',type:'binary'},
+      {id:'A3',text:'¿Ofrece opciones de financiamiento o pago a plazos a sus clientes?',type:'binary'},
+      {id:'A4',text:'¿Tiene métricas financieras que revisa mensualmente?',type:'binary'},
+      {id:'A5',text:'¿Qué tan clara está la dirección del negocio para todo el equipo?',type:'scale',
+        mn:'Nadie sabe hacia dónde va',mx:'Todos alineados y con claridad'}
+    ]
+  },
+  {
+    id:'B', name:'Mercado y Propuesta', sub:'Consciencia y diferenciación', weight:0.15,
+    questions:[
+      {id:'B1',text:'¿Tiene definido y documentado su cliente ideal?',type:'binary'},
+      {id:'B2',text:'¿Sabe cuáles son sus 3 principales competidores y en qué se diferencia de cada uno?',type:'binary'},
+      {id:'B3',text:'¿Su equipo puede explicar la propuesta de valor sin improvisar?',type:'binary'},
+      {id:'B4',text:'Nivel de conocimiento del mercado objetivo (tendencias, dolores, lenguaje del cliente)',type:'scale',
+        mn:'Vende sin conocer el mercado',mx:'Conoce el mercado mejor que nadie'},
+      {id:'B5',text:'Nivel de claridad del diferenciador en la mente del equipo',type:'scale',
+        mn:'Todos lo explican diferente',mx:'Mensaje único y consistente'},
+      {id:'B6',text:'Nivel de consciencia del cliente promedio al llegar a la primera conversación',type:'scale',
+        mn:'No sabe que tiene problema',mx:'Listo para comprar'}
+    ]
+  },
+  {
+    id:'C', name:'Atracción y Marketing', sub:'Etapas 1 y 2 del Modelo BRAVA', weight:0.15,
+    questions:[
+      {id:'C1',text:'¿Tiene una estrategia de contenido activa y consistente?',type:'binary'},
+      {id:'C2',text:'¿Invierte en pauta digital (Meta Ads, Google, etc.)?',type:'binary'},
+      {id:'C3',text:'¿Tiene definidos sus canales de atracción y cuál genera más leads?',type:'binary'},
+      {id:'C4',text:'¿Tiene sistema de captura de leads (formulario, landing, CTA claro)?',type:'binary'},
+      {id:'C5',text:'Consistencia del contenido en los últimos 90 días',type:'scale',
+        mn:'No publica nada',mx:'Publicación sistemática y planificada'},
+      {id:'C6',text:'Calidad del contenido vs. lo que el mercado espera ver',type:'scale',
+        mn:'Genérico y sin diferenciador',mx:'Contenido que posiciona y genera confianza'},
+      {id:'C7',text:'Velocidad de respuesta al lead cuando llega',type:'scale',
+        mn:'Más de 24 horas',mx:'Menos de 1 hora, proceso automático'}
+    ]
+  },
+  {
+    id:'D', name:'Pipeline y Equipo', sub:'El corazón del diagnóstico', weight:0.25,
+    questions:[
+      {id:'D1',text:'¿Tiene CRM activo y siendo usado por todo el equipo?',type:'binary'},
+      {id:'D2',text:'¿Tiene las etapas del pipeline definidas y documentadas?',type:'binary'},
+      {id:'D3',text:'¿Tiene esquema de comisiones documentado y conocido por el equipo?',type:'binary'},
+      {id:'D4',text:'¿Tiene roles y responsabilidades del equipo comercial documentados?',type:'binary'},
+      {id:'D5',text:'¿Usa herramientas de automatización de seguimiento (secuencias, recordatorios)?',type:'binary'},
+      {id:'D6',text:'¿Puede decir hoy cuántos prospectos activos tiene y en qué etapa está cada uno?',type:'binary'},
+      {id:'D7',text:'Salud actual del pipeline (cantidad y calidad de oportunidades)',type:'scale',
+        mn:'Vacío o sin control',mx:'Pipeline predecible con fechas de cierre'},
+      {id:'D8',text:'Claridad de roles dentro del equipo de ventas',type:'scale',
+        mn:'Todos hacen de todo sin orden',mx:'Roles diferenciados con KPIs propios'},
+      {id:'D9',text:'Nivel de motivación y claridad del equipo sobre sus metas',type:'scale',
+        mn:'Equipo sin dirección ni metas',mx:'Equipo alineado con metas claras'},
+      {id:'D10',text:'¿Qué tan predecible es el ingreso mensual del negocio hoy?',type:'scale',
+        mn:'No sé qué va a entrar este mes',mx:'Puedo proyectar con ±10% de precisión'}
+    ]
+  },
+  {
+    id:'E', name:'Conversación de Venta', sub:'Modelo de Conversaciones Astutas', weight:0.25,
+    questions:[
+      {id:'E1',text:'¿Tiene guión o playbook de ventas documentado?',type:'binary'},
+      {id:'E2',text:'¿Tiene proceso de seguimiento definido (día 1, día 3, día 7)?',type:'binary'},
+      {id:'E3',text:'¿El equipo conoce y aplica las 6 etapas de una conversación de venta?',type:'binary'},
+      {id:'E4',text:'¿Tiene las principales objeciones documentadas con respuesta estandarizada?',type:'binary'},
+      {id:'E5',text:'¿Tiene un discurso de cierre definido?',type:'binary'},
+      {id:'E6',text:'Calidad del proceso de bienvenida y primer contacto con el prospecto',type:'scale',
+        mn:'Improvisado sin estructura',mx:'Experiencia diseñada que conecta de inmediato'},
+      {id:'E7',text:'Profundidad del diagnóstico que hace el vendedor antes de presentar el precio',type:'scale',
+        mn:'Presenta precio sin entender el problema',mx:'Diagnóstico profundo que crea urgencia'},
+      {id:'E8',text:'Efectividad del manejo de objeciones del equipo',type:'scale',
+        mn:'Bajan el precio o no saben qué decir',mx:'Respuestas que reencuadran el valor'},
+      {id:'E9',text:'Consistencia del discurso entre vendedores',type:'scale',
+        mn:'Cada quien dice algo diferente',mx:'Mensaje único que todos replican'},
+      {id:'E10',text:'Tasa de cierre estimada (prospectos que llegan a propuesta vs. cierran)',type:'scale',
+        mn:'Menos del 10% cierra',mx:'Más del 40% cierra consistentemente'}
+    ]
+  },
+  {
+    id:'F', name:'Post-Venta', sub:'Etapa 5 del Modelo BRAVA', weight:0.12,
+    questions:[
+      {id:'F1',text:'¿Tiene proceso de onboarding documentado para clientes nuevos?',type:'binary'},
+      {id:'F2',text:'¿Tiene sistema de referidos activo con incentivo definido?',type:'binary'},
+      {id:'F3',text:'¿Mide satisfacción del cliente de forma sistemática?',type:'binary'},
+      {id:'F4',text:'¿Tiene estrategia de upsell o cross-sell documentada?',type:'binary'},
+      {id:'F5',text:'Calidad de la experiencia post-venta percibida por el cliente',type:'scale',
+        mn:'Desaparecen después de cobrar',mx:'Experiencia que genera lealtad y referidos'},
+      {id:'F6',text:'Tasa de referidos activos (clientes que traen otros clientes)',type:'scale',
+        mn:'No hay referidos activos',mx:'Referidos son canal principal de nuevos clientes'}
+    ]
+  }
+];
+
+const QUAL = [
+  {
+    id:'Q1', badge:'green', timing:'PREGUNTA DE APERTURA',
+    hint:'Hacer antes de comenzar los módulos',
+    text:'Si tuvieras que explicarme en 2 minutos por qué tus ventas no son lo que deberían ser — sin filtros — ¿qué dirías?'
+  },
+  {
+    id:'Q2', badge:'yellow', timing:'DESPUÉS DEL MÓDULO D',
+    hint:'Hacer después de completar Pipeline y Equipo',
+    text:'¿Qué es lo que más te ha costado trabajo cambiar en tu área comercial — y por qué crees que no ha cambiado?'
+  },
+  {
+    id:'Q3', badge:'green', timing:'CIERRE DE SESIÓN',
+    hint:'Hacer justo antes de generar el diagnóstico',
+    text:'¿Cómo se ve para ti un proceso comercial que funciona bien — qué estarías viendo diferente en 90 días?'
+  }
+];
+
+// pages: 0..5 = modules, 6 = qualitative
+const PAGES = [...MODULES.map((_,i)=>({type:'module',idx:i})), {type:'qual'}];
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let state = {
+  apiKey: '',
+  client: {name:'', company:'', industry:'', sellers:''},
+  answers: {},  // {A1: true/false, A5: 3, Q1: '...'}
+  currentPage: 0,
+  diagnosis: null,
+  date: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})
+};
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+window.onload = () => {
+  const saved = localStorage.getItem('brava_api_key');
+  if(saved) document.getElementById('inp-key').value = saved;
+};
+
+// ═══════════════════════════════════════════
+// SCORING
+// ═══════════════════════════════════════════
+function calcModuleScore(mod) {
+  let actual = 0, max = 0;
+  let answered = 0;
+  for(const q of mod.questions) {
+    const a = state.answers[q.id];
+    if(a === undefined || a === null || a === '') continue;
+    answered++;
+    if(q.type === 'binary') { max += 1; if(a === true) actual += 1; }
+    else { max += 1; actual += a/5; }
+  }
+  return {score: max > 0 ? Math.round((actual/max)*100) : 0, answered, total: mod.questions.length};
+}
+
+function calcGlobal() {
+  let weighted = 0;
+  for(const mod of MODULES) {
+    const {score} = calcModuleScore(mod);
+    weighted += (score/100) * mod.weight;
+  }
+  return Math.round(weighted * 100);
+}
+
+function scoreColor(s) {
+  if(s <= 40) return {cls:'r', label:'Proceso crítico', bar:'#f87171'};
+  if(s <= 70) return {cls:'y', label:'Proceso en desarrollo', bar:'#fbbf24'};
+  return {cls:'g', label:'Proceso saludable', bar:'#22c55e'};
+}
+
+function progressPct() {
+  let answered = 0, total = 0;
+  for(const mod of MODULES) for(const q of mod.questions) {
+    total++;
+    if(state.answers[q.id] !== undefined && state.answers[q.id] !== null && state.answers[q.id] !== '') answered++;
+  }
+  for(const q of QUAL) {
+    total++;
+    if(state.answers[q.id] && state.answers[q.id].trim()) answered++;
+  }
+  return Math.round((answered/total)*100);
+}
+
+function moduleStatus(mod) {
+  const {answered, total} = calcModuleScore(mod);
+  if(answered === 0) return 'empty';
+  if(answered === total) return 'complete';
+  return 'partial';
+}
+
+// ═══════════════════════════════════════════
+// SCREEN MGMT
+// ═══════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// START SESSION
+// ═══════════════════════════════════════════
+function startSession() {
+  const key = document.getElementById('inp-key').value.trim();
+  const name = document.getElementById('inp-name').value.trim();
+  const company = document.getElementById('inp-company').value.trim();
+  const industry = document.getElementById('inp-industry').value;
+  const sellers = document.getElementById('inp-sellers').value;
+
+  if(!key) return alert('Ingresa tu API Key de Anthropic para continuar.');
+  if(!name) return alert('Ingresa el nombre del cliente.');
+  if(!company) return alert('Ingresa el nombre de la empresa.');
+
+  localStorage.setItem('brava_api_key', key);
+  state.apiKey = key;
+  state.client = {name, company, industry: industry||'No especificada', sellers: sellers||'No especificado'};
+  state.answers = {};
+  state.currentPage = 0;
+  state.diagnosis = null;
+  state.date = new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'});
+
+  document.getElementById('tb-client-name').textContent = `${name} — ${company}`;
+  document.getElementById('tb-client-meta').textContent = `${state.client.industry} · ${state.date}`;
+
+  showScreen('s-session');
+  renderPage();
+}
+
+// ═══════════════════════════════════════════
+// NAVIGATE
+// ═══════════════════════════════════════════
+function navigate(dir) {
+  const isLast = state.currentPage === PAGES.length - 1;
+  if(dir === 1 && isLast) { generateDiagnosis(); return; }
+  state.currentPage = Math.max(0, Math.min(PAGES.length-1, state.currentPage+dir));
+  renderPage();
+  document.querySelector('.main').scrollTop = 0;
+}
+
+// ═══════════════════════════════════════════
+// RENDER PAGE
+// ═══════════════════════════════════════════
+function renderPage() {
+  renderSidebar();
+  const page = PAGES[state.currentPage];
+  if(page.type === 'module') renderModule(MODULES[page.idx]);
+  else renderQualitative();
+  renderNav();
+  updateProgress();
+}
+
+function updateProgress() {
+  const pct = progressPct();
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-pct').textContent = pct+'%';
+}
+
+function renderSidebar() {
+  const sb = document.getElementById('sidebar');
+  const page = PAGES[state.currentPage];
+  let html = '';
+
+  html += '<div class="sb-label">Módulos de Diagnóstico</div>';
+  MODULES.forEach((mod,i) => {
+    const status = moduleStatus(mod);
+    const isActive = page.type === 'module' && page.idx === i;
+    const dotCls = isActive ? 'act' : (status === 'complete' ? 'complete' : status === 'partial' ? 'partial' : '');
+    const {score} = calcModuleScore(mod);
+    html += `<div class="sb-label" style="margin-bottom:0;padding:0;height:0;"></div>`;
+    html += `<div class="sb-item${isActive?' active':''}" onclick="goToPage(${i})" style="margin:0 6px 1px;">
+      <div class="sb-dot ${dotCls}"></div>
+      <div class="sb-info">
+        <div class="sb-name">${mod.id}. ${mod.name}</div>
+        <div class="sb-cnt">${mod.questions.length} preguntas · ${status==='complete'?score+'%':status==='partial'?'En progreso':'Pendiente'}</div>
+      </div>
+    </div>`;
+  });
+
+  const isQualActive = page.type === 'qual';
+  const qualAnswered = QUAL.filter(q=>state.answers[q.id]&&state.answers[q.id].trim()).length;
+  const qualStatus = qualAnswered === 0 ? '' : qualAnswered === QUAL.length ? 'complete' : 'partial';
+  const qualDot = isQualActive ? 'act' : (qualStatus === 'complete' ? 'complete' : qualStatus === 'partial' ? 'partial' : '');
+
+  html += `<div class="sb-label" style="margin-top:12px;">Preguntas Cualitativas</div>`;
+  html += `<div class="sb-item${isQualActive?' active':''}" onclick="goToPage(${MODULES.length})">
+    <div class="sb-dot ${qualDot}"></div>
+    <div class="sb-info">
+      <div class="sb-name">Perspectiva del dueño</div>
+      <div class="sb-cnt">3 preguntas · ${qualAnswered===0?'Pendiente':qualAnswered===3?'Completo':qualAnswered+'/3 respondidas'}</div>
+    </div>
+  </div>`;
+
+  sb.innerHTML = html;
+}
+
+function goToPage(idx) {
+  state.currentPage = idx;
+  renderPage();
+  document.querySelector('.main').scrollTop = 0;
+}
+
+function renderModule(mod) {
+  const {score, answered, total} = calcModuleScore(mod);
+  let html = `<div class="mod-header">
+    <div class="mod-tag">Módulo ${mod.id} · ${Math.round(mod.weight*100)}% del score</div>
+    <h2 class="mod-title">${mod.name}</h2>
+    <div class="mod-sub">${mod.sub}</div>
+    <div class="mod-wt">${answered}/${total} respondidas${answered>0?' · Score parcial: '+score+'%':''}</div>
+  </div>
+  <div class="q-list">`;
+
+  mod.questions.forEach(q => {
+    const a = state.answers[q.id];
+    const isAns = a !== undefined && a !== null;
+    html += `<div class="q-card${isAns?' answered':''}" id="qc-${q.id}">
+      <div class="q-hd">
+        <span class="q-num">${q.id}</span>
+        <span class="q-txt">${q.text}</span>
+      </div>`;
+
+    if(q.type === 'binary') {
+      html += `<div class="bin-opts">
+        <button class="bin-btn${a===true?' sel-y':''}" onclick="setAnswer('${q.id}',true)">✓ Sí, lo tiene</button>
+        <button class="bin-btn${a===false?' sel-n':''}" onclick="setAnswer('${q.id}',false)">✗ No lo tiene</button>
+      </div>`;
+    } else {
+      html += `<div class="sc-opts">`;
+      for(let i=1;i<=5;i++) {
+        html += `<button class="sc-btn${a===i?' sel':''}" onclick="setAnswer('${q.id}',${i})">${i}</button>`;
+      }
+      html += `</div><div class="sc-lbls"><span class="sc-lbl">${q.mn}</span><span class="sc-lbl">${q.mx}</span></div>`;
+    }
+    html += `</div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function renderQualitative() {
+  let html = `<div class="mod-header">
+    <div class="mod-tag">Preguntas Cualitativas · 3 preguntas</div>
+    <h2 class="mod-title">Perspectiva del dueño</h2>
+    <div class="mod-sub">Estas respuestas le dan contexto emocional al diagnóstico. Sin filtros.</div>
+  </div>
+  <div class="q-list">`;
+
+  QUAL.forEach(q => {
+    const a = state.answers[q.id] || '';
+    html += `<div class="q-card${a.trim()?' answered':''}">
+      <div class="qual-badge ${q.badge}">${q.timing}</div>
+      <div class="q-hd">
+        <span class="q-num">${q.id}</span>
+        <span class="q-txt">${q.text}</span>
+      </div>
+      <textarea class="qual-ta" id="ta-${q.id}" placeholder="Captura la respuesta aquí..." onchange="setAnswer('${q.id}',this.value)" oninput="setAnswer('${q.id}',this.value)">${a}</textarea>
+      <div class="qual-hint">${q.hint}</div>
+    </div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function renderNav() {
+  const isFirst = state.currentPage === 0;
+  const isLast = state.currentPage === PAGES.length - 1;
+  const page = PAGES[state.currentPage];
+
+  document.getElementById('btn-prev').disabled = isFirst;
+
+  const nextBtn = document.getElementById('btn-next');
+  if(isLast) {
+    nextBtn.textContent = '⚡ Generar Diagnóstico';
+    nextBtn.className = 'btn-nav btn-gen';
+  } else {
+    nextBtn.textContent = 'Siguiente →';
+    nextBtn.className = 'btn-nav btn-gen';
+  }
+
+  const total = PAGES.length;
+  const cur = state.currentPage + 1;
+  document.getElementById('nav-mid').innerHTML = `Sección <b>${cur}</b> de <b>${total}</b>`;
+}
+
+// ═══════════════════════════════════════════
+// ANSWER
+// ═══════════════════════════════════════════
+function setAnswer(id, val) {
+  state.answers[id] = val;
+  // Re-render just the card buttons without full page re-render
+  const card = document.getElementById('qc-'+id);
+  if(card) {
+    card.classList.toggle('answered', val !== undefined && val !== null);
+    const buttons = card.querySelectorAll('.bin-btn');
+    if(buttons.length) {
+      buttons[0].className = 'bin-btn' + (val===true?' sel-y':'');
+      buttons[1].className = 'bin-btn' + (val===false?' sel-n':'');
+    }
+    const scaleBtns = card.querySelectorAll('.sc-btn');
+    if(scaleBtns.length) {
+      scaleBtns.forEach((b,i)=>{ b.className = 'sc-btn'+(val===i+1?' sel':''); });
+    }
+  }
+  renderSidebar();
+  updateProgress();
+}
+
+// ═══════════════════════════════════════════
+// GENERATE DIAGNOSIS
+// ═══════════════════════════════════════════
+async function generateDiagnosis() {
+  showScreen('s-loading');
+
+  // Animate loading steps
+  const steps = ['ld-1','ld-2','ld-3','ld-4','ld-5'];
+  for(let i=0;i<steps.length;i++) {
+    setTimeout(()=>{
+      if(i>0) document.getElementById(steps[i-1]).className='ld-step done';
+      document.getElementById(steps[i]).className='ld-step act';
+    }, i*700);
+  }
+
+  // Build scores summary
+  let scoresText = '';
+  for(const mod of MODULES) {
+    const {score, answered, total} = calcModuleScore(mod);
+    scoresText += `\n${mod.id}. ${mod.name} (peso ${Math.round(mod.weight*100)}%): ${score}/100 (${answered}/${total} respondidas)\n`;
+    for(const q of mod.questions) {
+      const a = state.answers[q.id];
+      if(a !== undefined && a !== null) {
+        const aStr = q.type==='binary' ? (a?'SÍ ✓':'NO ✗') : `${a}/5`;
+        scoresText += `  ${q.id}: ${q.text} → ${aStr}\n`;
+      }
+    }
+  }
+
+  const globalScore = calcGlobal();
+  const qualText = QUAL.map(q=>`${q.id} (${q.timing}): ${state.answers[q.id]||'Sin respuesta'}`).join('\n\n');
+
+  const prompt = `Eres el motor de análisis del Scanner Brava, una auditoría de proceso comercial diseñada por Orlando Muñoz de Brava by Orlando Muñoz. Tu trabajo es generar un diagnóstico comercial honesto, específico y accionable basado en los datos de la sesión.
+
+MODELO BRAVA — Marco de referencia para el diagnóstico:
+El Modelo de Ventas BRAVA tiene 5 etapas:
+1. BIENVENIDA: Primera impresión poderosa, conexión emocional con el prospecto
+2. RETENCIÓN: Autenticidad, profesionalismo y enfoque específico (hace que se quede y te siga)
+3. ACTIVACIÓN: Educar, entretener y emocionar — historias que venden, contenido de alto valor, contenido transformador
+4. VENTA (Conversaciones Astutas — 6 etapas): Bienvenida → Contexto → Retos → Activación → Valor y Venta → Acuerdos
+5. ACOMPAÑAMIENTO: Entrega memorable, registro de experiencia, testimonios, plan de referidos, comunidad
+
+Niveles de consciencia del cliente (escala del diagnóstico B6):
+1 = Sabe cómo, sabe con quién, listo para comprar
+2 = Sabe con quién resolverlo
+3 = Sabe que tiene un problema y sabe cómo resolverlo
+4 = Sabe que tiene un problema
+5 = No sabe que tiene un problema
+
+Señales de proceso comercial SANO: pipeline predecible con etapas documentadas, CRM activo y usado, discurso consistente entre vendedores, seguimiento estructurado (día 1-3-7), post-venta que genera referidos, el dueño NO es el único que cierra ventas, métricas claras revisadas semanalmente.
+
+Señales de proceso comercial ROTO: el dueño es el cuello de botella, ventas inconsistentes sin entender por qué, equipo que improvisa en cada conversación, sin seguimiento (oportunidades que se enfrían), post-venta inexistente, sin métricas ni pipeline visible.
+
+DATOS DE LA SESIÓN:
+Cliente: ${state.client.name}
+Empresa: ${state.client.company}
+Industria: ${state.client.industry}
+Tamaño del equipo de ventas: ${state.client.sellers}
+Fecha: ${state.date}
+Score global calculado: ${globalScore}/100
+
+SCORES DETALLADOS POR MÓDULO:
+${scoresText}
+
+RESPUESTAS CUALITATIVAS:
+${qualText}
+
+Genera el diagnóstico completo en el siguiente formato JSON exacto. No incluyas texto fuera del JSON. No uses markdown. Solo el objeto JSON:
+
+{
+  "score_global": ${globalScore},
+  "resumen_ejecutivo": "2-3 oraciones directas sobre el hallazgo más crítico. Sin palabras vacías. Nombra el problema real.",
+  "diagnostico_narrativo": "4 párrafos separados por \\n\\n. Párrafo 1: dónde está el negocio hoy en el Modelo BRAVA y qué etapa es la más débil. Párrafo 2: la falla principal y por qué existe (conecta con las respuestas cualitativas). Párrafo 3: qué pasa si no se resuelve en los próximos 90 días — en términos de pesos perdidos o clientes que se van a la competencia. Párrafo 4: algo positivo que Orlando puede apalancar ya.",
+  "fallas_criticas": [
+    {"titulo": "Nombre de la falla en 4-6 palabras", "modulo": "Módulo X — Nombre", "descripcion": "2-3 oraciones específicas. Conecta el score bajo con el impacto real en ventas perdidas o ingresos no capturados."},
+    {"titulo": "...", "modulo": "...", "descripcion": "..."},
+    {"titulo": "...", "modulo": "...", "descripcion": "..."}
+  ],
+  "plan_10_dias": [
+    {"dias": "1–2", "accion": "Acción específica y ejecutable hoy mismo", "responsable": "Dueño / Equipo / Ambos", "metrica": "Cómo saber que se completó"},
+    {"dias": "3–4", "accion": "...", "responsable": "...", "metrica": "..."},
+    {"dias": "5–6", "accion": "...", "responsable": "...", "metrica": "..."},
+    {"dias": "7–8", "accion": "...", "responsable": "...", "metrica": "..."},
+    {"dias": "9–10", "accion": "...", "responsable": "...", "metrica": "..."}
+  ],
+  "etapa_brava_actual": "Cuál etapa del Modelo BRAVA es la más débil y qué significa eso en términos prácticos para el negocio.",
+  "nivel_consciencia": 3,
+  "siguiente_paso": {
+    "producto": "FOX Training / Sistema Brava / Ambos",
+    "razon": "2-3 oraciones específicas: por qué este producto resuelve exactamente lo que encontraste, qué resultado puede esperar el cliente en 30-60 días si arranca esta semana."
+  }
+}`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        messages: [{role:'user', content: prompt}]
+      })
+    });
+
+    if(!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || `Error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw = data.content[0].text.trim();
+
+    // Parse JSON — strip any accidental markdown fences
+    const clean = raw.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+    state.diagnosis = JSON.parse(clean);
+
+    setTimeout(()=>{
+      document.getElementById('ld-5').className='ld-step done';
+      setTimeout(()=>renderResults(), 400);
+    }, 3500);
+
+  } catch(e) {
+    showScreen('s-results');
+    document.getElementById('res-body').innerHTML = `<div class="err-card">
+      <b>Error al generar el diagnóstico</b><br><br>
+      ${e.message}<br><br>
+      Revisa que tu API Key sea válida y que tengas crédito en tu cuenta de Anthropic.
+      <br><br>
+      <button class="btn-nav" onclick="showScreen('s-session');renderPage();" style="margin-top:8px;">← Volver a la sesión</button>
+    </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// RENDER RESULTS
+// ═══════════════════════════════════════════
+function renderResults() {
+  showScreen('s-results');
+  const d = state.diagnosis;
+  if(!d) return;
+
+  const sc = scoreColor(d.score_global);
+  const moduleScores = MODULES.map(m=>({...m, ...calcModuleScore(m)}));
+
+  // Narrative paragraphs
+  const narrativeParagraphs = (d.diagnostico_narrativo||'').split(/\n\n+/).filter(p=>p.trim());
+
+  let html = '';
+
+  // Score hero
+  html += `<div class="score-hero">
+    <div class="score-main">
+      <div class="score-n ${sc.cls}">${d.score_global}</div>
+      <div class="score-lbl">Score global</div>
+      <div class="score-badge ${sc.cls}">${sc.label}</div>
+    </div>
+    <div class="score-summary">
+      <div class="blk-title">Resumen Ejecutivo</div>
+      <div class="sum-txt">${d.resumen_ejecutivo||''}</div>
+      <div style="margin-top:14px;font-size:11px;color:var(--text-4);">
+        ${state.client.name} · ${state.client.company} · ${state.client.industry} · ${state.date}
+      </div>
+    </div>
+  </div>`;
+
+  // Module scores
+  html += `<div class="mod-scores">
+    <div class="blk-title">Score por Módulo</div>`;
+  moduleScores.forEach(m=>{
+    const mc = scoreColor(m.score);
+    html += `<div class="ms-row">
+      <div class="ms-name">${m.id}. ${m.name}</div>
+      <div class="ms-bar"><div class="ms-fill" style="width:${m.score}%;background:${mc.bar}"></div></div>
+      <div class="ms-val" style="color:${mc.bar}">${m.score}%</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Critical findings
+  html += `<div class="blk-title" style="margin-bottom:10px;">Las 3 Fallas Críticas</div>
+  <div class="findings">`;
+  (d.fallas_criticas||[]).forEach((f,i)=>{
+    html += `<div class="finding">
+      <div class="f-num">Falla #${i+1} — ${f.modulo||''}</div>
+      <div class="f-title">${f.titulo||''}</div>
+      <div class="f-desc">${f.descripcion||''}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Narrative
+  html += `<div class="narrative">
+    <div class="blk-title">Diagnóstico Narrativo</div>
+    <div class="narr-txt">`;
+  narrativeParagraphs.forEach(p=>{ html += `<p>${p}</p>`; });
+  html += `</div></div>`;
+
+  // Action plan
+  html += `<div class="action-plan">
+    <div class="blk-title" style="margin-bottom:12px;">Plan de Acción — 10 Días</div>
+    <div class="ap-hd">
+      <div class="ap-hd-cell">Días</div>
+      <div class="ap-hd-cell">Acción</div>
+      <div class="ap-hd-cell">Métrica</div>
+    </div>`;
+  (d.plan_10_dias||[]).forEach(a=>{
+    html += `<div class="ap-row">
+      <div class="ap-day">${a.dias||''}</div>
+      <div class="ap-act"><b style="font-size:11px;color:var(--text-4);">${a.responsable||''}</b><br>${a.accion||''}</div>
+      <div class="ap-met">${a.metrica||''}</div>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // Brava stage
+  html += `<div class="brava-stage">
+    <div class="bs-icon">🎯</div>
+    <div class="bs-txt"><b>Posición en el Modelo BRAVA hoy:</b><br>${d.etapa_brava_actual||''}</div>
+  </div>`;
+
+  // Next step
+  if(d.siguiente_paso) {
+    html += `<div class="next-step">
+      <div class="ns-lbl">Siguiente Paso Recomendado</div>
+      <div class="ns-prod">${d.siguiente_paso.producto||''}</div>
+      <div class="ns-reason">${d.siguiente_paso.razon||''}</div>
+    </div>`;
+  }
+
+  document.getElementById('res-body').innerHTML = html;
+}
+
+// ═══════════════════════════════════════════
+// PDF GENERATION
+// ═══════════════════════════════════════════
+function downloadPDF() {
+  const d = state.diagnosis;
+  if(!d) { alert('Primero genera el diagnóstico.'); return; }
+
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+
+  const W = 210, H = 297;
+  const darkG = [14, 53, 14];
+  const brightG = [34, 197, 94];
+  const lightG = [240, 253, 244];
+  const gray = [30, 46, 30];
+  const textMain = [240, 253, 244];
+  const textDim = [106, 154, 106];
+  const white = [255, 255, 255];
+  const red = [248, 113, 113];
+  const yellow = [251, 191, 36];
+
+  function sc(s) {
+    if(s<=40) return red;
+    if(s<=70) return yellow;
+    return brightG;
+  }
+  function slabel(s) {
+    if(s<=40) return 'PROCESO CRÍTICO';
+    if(s<=70) return 'EN DESARROLLO';
+    return 'PROCESO SALUDABLE';
+  }
+
+  // ── PAGE 1 ──────────────────────────────
+  // Header bar
+  doc.setFillColor(...darkG);
+  doc.rect(0, 0, W, 42, 'F');
+
+  // Brava logo text
+  doc.setTextColor(...brightG);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('BRAVA', 14, 16);
+  doc.setTextColor(...lightG);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('Scanner — Diagnóstico Comercial', 14, 23);
+
+  // Client info (header right)
+  doc.setTextColor(...lightG);
+  doc.setFontSize(9);
+  doc.text(state.client.name, W-14, 13, {align:'right'});
+  doc.setTextColor(...textDim);
+  doc.text(state.client.company, W-14, 19, {align:'right'});
+  doc.text(`${state.client.industry} · ${state.date}`, W-14, 25, {align:'right'});
+
+  // Score circle simulation (box)
+  doc.setFillColor(20, 32, 20);
+  doc.roundedRect(14, 50, 52, 52, 4, 4, 'F');
+  doc.setTextColor(...sc(d.score_global));
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(36);
+  doc.text(String(d.score_global), 40, 74, {align:'center'});
+  doc.setFontSize(8);
+  doc.setTextColor(...textDim);
+  doc.text('SCORE GLOBAL', 40, 81, {align:'center'});
+  doc.setFontSize(7);
+  doc.setTextColor(...sc(d.score_global));
+  doc.text(slabel(d.score_global), 40, 88, {align:'center'});
+  doc.setFontSize(7);
+  doc.setTextColor(...textDim);
+  doc.text('/100', 40, 95, {align:'center'});
+
+  // Summary box
+  doc.setFillColor(20, 32, 20);
+  doc.roundedRect(72, 50, W-86, 52, 4, 4, 'F');
+  doc.setTextColor(...textDim);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.text('RESUMEN EJECUTIVO', 78, 58);
+  doc.setTextColor(184, 216, 184);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const sumLines = doc.splitTextToSize(d.resumen_ejecutivo||'', W-96);
+  doc.text(sumLines.slice(0,5), 78, 66);
+
+  // Module scores
+  let y = 112;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...textDim);
+  doc.text('SCORE POR MÓDULO', 14, y);
+  y += 6;
+
+  const moduleScores = MODULES.map(m=>({...m,...calcModuleScore(m)}));
+  moduleScores.forEach(m=>{
+    doc.setFillColor(20, 32, 20);
+    doc.rect(14, y, W-28, 7, 'F');
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(184, 216, 184);
+    doc.text(`${m.id}. ${m.name}`, 17, y+4.5);
+    // bar background
+    const bx = 90, bw = W-28-90-20, bh = 3;
+    doc.setFillColor(30, 46, 30);
+    doc.rect(bx, y+2, bw, bh, 'F');
+    doc.setFillColor(...sc(m.score));
+    doc.rect(bx, y+2, bw*(m.score/100), bh, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...sc(m.score));
+    doc.text(`${m.score}%`, W-18, y+4.5, {align:'right'});
+    y += 9;
+  });
+
+  // ── PAGE 2 ──────────────────────────────
+  doc.addPage();
+  doc.setFillColor(...darkG);
+  doc.rect(0, 0, W, 16, 'F');
+  doc.setTextColor(...brightG);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.text('BRAVA SCANNER', 14, 10);
+  doc.setTextColor(...textDim);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8);
+  doc.text(`${state.client.company} · Fallas Críticas y Plan de Acción`, W-14, 10, {align:'right'});
+
+  y = 26;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...textDim);
+  doc.text('LAS 3 FALLAS CRÍTICAS', 14, y);
+  y += 6;
+
+  const leftColors = [red, yellow, [100, 154, 100]];
+  (d.fallas_criticas||[]).forEach((f,i)=>{
+    const col = leftColors[i]||textDim;
+    doc.setFillColor(20,32,20);
+    doc.roundedRect(14, y, W-28, 22, 3, 3, 'F');
+    doc.setFillColor(...col);
+    doc.rect(14, y, 2.5, 22, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...col);
+    doc.text(`FALLA #${i+1} — ${(f.modulo||'').toUpperCase()}`, 20, y+5);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(240,253,240);
+    doc.text(f.titulo||'', 20, y+11);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(184,216,184);
+    const descLines = doc.splitTextToSize(f.descripcion||'', W-44);
+    doc.text(descLines.slice(0,2), 20, y+17);
+    y += 26;
+  });
+
+  y += 4;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...textDim);
+  doc.text('PLAN DE ACCIÓN — 10 DÍAS', 14, y);
+  y += 7;
+
+  // Table header
+  doc.setFillColor(14, 53, 14);
+  doc.rect(14, y-4, W-28, 7, 'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(7);
+  doc.setTextColor(...brightG);
+  doc.text('DÍAS', 17, y);
+  doc.text('ACCIÓN', 38, y);
+  doc.text('MÉTRICA', W-50, y);
+  y += 4;
+
+  (d.plan_10_dias||[]).forEach((a,i)=>{
+    doc.setFillColor(i%2===0?[20,32,20]:[17,28,17]);
+    doc.rect(14, y-3, W-28, 10, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(...brightG);
+    doc.text(a.dias||'', 17, y+2.5);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(184,216,184);
+    const actLines = doc.splitTextToSize(a.accion||'', 82);
+    doc.text(actLines[0]||'', 38, y+1.5);
+    if(actLines[1]) doc.text(actLines[1], 38, y+5.5);
+    doc.setTextColor(...textDim);
+    const metLines = doc.splitTextToSize(a.metrica||'', 55);
+    doc.text(metLines[0]||'', W-50, y+1.5);
+    y += 11;
+  });
+
+  // Next step box
+  y += 4;
+  if(y < H-55 && d.siguiente_paso) {
+    doc.setFillColor(14,40,14);
+    doc.roundedRect(14, y, W-28, 32, 4, 4, 'F');
+    doc.setDrawColor(...brightG);
+    doc.roundedRect(14, y, W-28, 32, 4, 4, 'S');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(7);
+    doc.setTextColor(...brightG);
+    doc.text('SIGUIENTE PASO RECOMENDADO', 20, y+7);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(12);
+    doc.setTextColor(240,253,240);
+    doc.text(d.siguiente_paso.producto||'', 20, y+16);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8);
+    doc.setTextColor(184,216,184);
+    const rLines = doc.splitTextToSize(d.siguiente_paso.razon||'', W-44);
+    doc.text(rLines.slice(0,2), 20, y+23);
+  }
+
+  // Footer
+  doc.setFillColor(...darkG);
+  doc.rect(0, H-12, W, 12, 'F');
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...textDim);
+  doc.text('Brava by Orlando Muñoz · www.orlandomunozf.com · (614) 246-8106', 14, H-5);
+  doc.setTextColor(...brightG);
+  doc.text('Scanner Brava — Confidencial', W-14, H-5, {align:'right'});
+
+  const filename = `Scanner_Brava_${state.client.company.replace(/\s+/g,'_')}_${state.date.replace(/\s+/g,'_')}.pdf`;
+  doc.save(filename);
+}
+
+// ═══════════════════════════════════════════
+// NEW SESSION
+// ═══════════════════════════════════════════
+function newSession() {
+  if(!confirm('¿Iniciar una nueva sesión? Los datos actuales se perderán.')) return;
+  state.answers = {};
+  state.diagnosis = null;
+  state.currentPage = 0;
+  document.getElementById('inp-name').value = '';
+  document.getElementById('inp-company').value = '';
+  document.getElementById('inp-industry').value = '';
+  document.getElementById('inp-sellers').value = '';
+  showScreen('s-setup');
+}
+</script>
+</body>
+</html>
