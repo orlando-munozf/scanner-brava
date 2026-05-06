@@ -510,7 +510,7 @@ let state = {
   answers: {},  // {A1: true/false, A5: 3, Q1: '...'}
   currentPage: 0,
   diagnosis: null,
-  calc: {leads:'', cierre:'', ticket:''},
+  calc: {leads:'', cierre:'', ticket:'', objetivo:''},
   date: new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'long',year:'numeric'})
 };
 
@@ -688,7 +688,7 @@ function renderSidebar() {
     <div class="sb-dot ${calcDot}"></div>
     <div class="sb-info">
       <div class="sb-name">¿Cuánto está perdiendo?</div>
-      <div class="sb-cnt">${calcFilled ? '✓ Calculado' : 'Pendiente — 3 datos'}</div>
+      <div class="sb-cnt">${calcFilled ? '✓ Datos capturados' : 'Pendiente — ingresa datos'}</div>
     </div>
   </div>`;
 
@@ -725,6 +725,9 @@ function renderModule(mod) {
         <button class="bin-btn${a===true?' sel-y':''}" onclick="setAnswer('${q.id}',true)">✓ Sí, lo tiene</button>
         <button class="bin-btn${a===false?' sel-n':''}" onclick="setAnswer('${q.id}',false)">✗ No lo tiene</button>
       </div>`;
+    } else if(q.type === 'open') {
+      const aVal = a || '';
+      html += `<textarea class="qual-ta" placeholder="Captura la respuesta del cliente aquí..." onchange="setAnswer('${q.id}',this.value)" oninput="setAnswer('${q.id}',this.value)">${aVal}</textarea>`;
     } else {
       html += `<div class="sc-opts">`;
       for(let i=1;i<=5;i++) {
@@ -816,13 +819,16 @@ function calcPerdida() {
   const leads = parseFloat(state.calc.leads) || 0;
   const cierre = parseFloat(state.calc.cierre) || 0;
   const ticket = parseFloat(state.calc.ticket) || 0;
+  const objetivo = parseFloat(state.calc.objetivo) || 0;
   if(!leads || !cierre || !ticket) return null;
-  const ventasActuales = leads * (cierre/100);
-  const ventasSanas = leads * 0.40;
-  const ventasPerdidas = Math.max(0, ventasSanas - ventasActuales);
-  const pesosMes = ventasPerdidas * ticket;
-  const pesosAnio = pesosMes * 12;
-  return {leads, cierre, ticket, ventasActuales, ventasSanas, ventasPerdidas, pesosMes, pesosAnio};
+  const ventasHoy = leads * (cierre/100);
+  const ingresosHoy = ventasHoy * ticket;
+  const ventasObj = objetivo ? leads * (objetivo/100) : null;
+  const ingresosObj = ventasObj !== null ? ventasObj * ticket : null;
+  const difVentas = ventasObj !== null ? ventasObj - ventasHoy : null;
+  const difPesos = ingresosObj !== null ? ingresosObj - ingresosHoy : null;
+  return {leads, cierre, ticket, objetivo, ventasHoy, ingresosHoy,
+          ventasObj, ingresosObj, difVentas, difPesos};
 }
 
 function setCalc(field, val) {
@@ -832,30 +838,27 @@ function setCalc(field, val) {
   if(!out) return;
   if(!res) { out.innerHTML = ''; return; }
   const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
+  const hasObj = res.ventasObj !== null;
   out.innerHTML = `
-    <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-      <div style="background:#1a0a0a;border-bottom:1px solid #3d1010;padding:18px 22px;text-align:center;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:6px;">Estimado mensual no capturado</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:48px;color:var(--red);line-height:1;">${fmt(res.pesosMes)}</div>
-        <div style="font-size:11px;color:#9a5a5a;margin-top:4px;">MXN / mes · ${fmt(res.pesosAnio)} MXN / año</div>
-      </div>
-      <div style="padding:16px 22px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--text-4);margin-bottom:4px;">Cierres actuales/mes</div>
-          <div style="font-size:20px;font-weight:700;color:var(--yellow);">${Math.round(res.ventasActuales)}</div>
+    <div style="margin-top:20px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:1fr${hasObj?' 1fr':''};gap:0;">
+        <div style="padding:20px 24px;${hasObj?'border-right:1px solid var(--border)':''}">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);margin-bottom:8px;">HOY · ${res.cierre}% de cierre</div>
+          <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;">${Math.round(res.ventasHoy)} ventas / mes</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--text-1);line-height:1;">${fmt(res.ingresosHoy)}</div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:3px;">MXN al mes</div>
         </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--text-4);margin-bottom:4px;">Con proceso sano (40%)</div>
-          <div style="font-size:20px;font-weight:700;color:var(--green);">${Math.round(res.ventasSanas)}</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--text-4);margin-bottom:4px;">Ventas no capturadas</div>
-          <div style="font-size:20px;font-weight:700;color:var(--red);">${Math.round(res.ventasPerdidas)}</div>
-        </div>
+        ${hasObj ? `<div style="padding:20px 24px;background:rgba(34,197,94,0.04);">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:8px;">SIMULADO · ${res.objetivo}% de cierre</div>
+          <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;">${Math.round(res.ventasObj)} ventas / mes</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--green);line-height:1;">${fmt(res.ingresosObj)}</div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:3px;">MXN al mes</div>
+        </div>` : ''}
       </div>
-      <div style="padding:10px 22px 16px;border-top:1px solid var(--border);">
-        <div style="font-size:10px;color:var(--text-4);font-style:italic;">* El 40% es el benchmark de cierre de un proceso comercial sano según el Método BRAVA. El número real varía según industria y ciclo de venta.</div>
-      </div>
+      ${hasObj && res.difPesos > 0 ? `<div style="padding:14px 24px;background:rgba(34,197,94,0.08);border-top:1px solid rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:12px;color:var(--green);font-weight:600;">Diferencia</div>
+        <div style="font-size:13px;color:var(--green);font-weight:700;">+${Math.round(res.difVentas)} ventas · +${fmt(res.difPesos)} MXN al mes</div>
+      </div>` : ''}
     </div>`;
 }
 
@@ -863,48 +866,46 @@ function renderCalculadora() {
   const c = state.calc;
   const res = calcPerdida();
   const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
+  const hasObj = res && res.ventasObj !== null;
+
   let resultHtml = '';
   if(res) {
     resultHtml = `
-    <div style="margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-      <div style="background:#1a0a0a;border-bottom:1px solid #3d1010;padding:18px 22px;text-align:center;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:6px;">Estimado mensual no capturado</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:48px;color:var(--red);line-height:1;">${fmt(res.pesosMes)}</div>
-        <div style="font-size:11px;color:#9a5a5a;margin-top:4px;">MXN / mes · ${fmt(res.pesosAnio)} MXN / año</div>
-      </div>
-      <div style="padding:16px 22px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--text-4);margin-bottom:4px;">Cierres actuales/mes</div>
-          <div style="font-size:20px;font-weight:700;color:var(--yellow);">${Math.round(res.ventasActuales)}</div>
+    <div style="margin-top:20px;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+      <div style="display:grid;grid-template-columns:1fr${hasObj?' 1fr':''};gap:0;">
+        <div style="padding:20px 24px;${hasObj?'border-right:1px solid var(--border)':''}">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text-4);margin-bottom:8px;">HOY · ${res.cierre}% de cierre</div>
+          <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;">${Math.round(res.ventasHoy)} ventas / mes</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--text-1);line-height:1;">${fmt(res.ingresosHoy)}</div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:3px;">MXN al mes</div>
         </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--text-4);margin-bottom:4px;">Con proceso sano (40%)</div>
-          <div style="font-size:20px;font-weight:700;color:var(--green);">${Math.round(res.ventasSanas)}</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px;color:var(--text-4);margin-bottom:4px;">Ventas no capturadas</div>
-          <div style="font-size:20px;font-weight:700;color:var(--red);">${Math.round(res.ventasPerdidas)}</div>
-        </div>
+        ${hasObj ? `<div style="padding:20px 24px;background:rgba(34,197,94,0.04);">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--green);margin-bottom:8px;">SIMULADO · ${res.objetivo}% de cierre</div>
+          <div style="font-size:13px;color:var(--text-3);margin-bottom:4px;">${Math.round(res.ventasObj)} ventas / mes</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:32px;color:var(--green);line-height:1;">${fmt(res.ingresosObj)}</div>
+          <div style="font-size:11px;color:var(--text-4);margin-top:3px;">MXN al mes</div>
+        </div>` : ''}
       </div>
-      <div style="padding:10px 22px 16px;border-top:1px solid var(--border);">
-        <div style="font-size:10px;color:var(--text-4);font-style:italic;">* El 40% es el benchmark de cierre de un proceso comercial sano según el Método BRAVA. El número real varía según industria y ciclo de venta.</div>
-      </div>
+      ${hasObj && res.difPesos > 0 ? `<div style="padding:14px 24px;background:rgba(34,197,94,0.08);border-top:1px solid rgba(34,197,94,0.15);display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:12px;color:var(--green);font-weight:600;">Diferencia</div>
+        <div style="font-size:13px;color:var(--green);font-weight:700;">+${Math.round(res.difVentas)} ventas · +${fmt(res.difPesos)} MXN al mes</div>
+      </div>` : ''}
     </div>`;
   }
 
   const html = `<div class="mod-header">
-    <div class="mod-tag">Calculadora de Pérdida · Paso final antes del diagnóstico</div>
-    <h2 class="mod-title">¿Cuánto está dejando sobre la mesa?</h2>
-    <div class="mod-sub">Captura estos 3 datos con el cliente. El número que aparece es el detonador de urgencia más poderoso de la sesión.</div>
+    <div class="mod-tag">Simulador de Cierre · Paso final antes del diagnóstico</div>
+    <h2 class="mod-title">¿Qué pasaría si cerraras más?</h2>
+    <div class="mod-sub">Captura los datos del cliente y simula el impacto de mejorar la tasa de cierre.</div>
   </div>
   <div class="q-list">
     <div class="q-card">
-      <div class="q-hd"><span class="q-num">C1</span><span class="q-txt">¿Cuántos prospectos o leads entran al negocio al mes (aproximado)?</span></div>
+      <div class="q-hd"><span class="q-num">S1</span><span class="q-txt">¿Cuántos prospectos o leads entran al mes (aproximado)?</span></div>
       <input class="fi" type="number" min="0" placeholder="Ej: 40" value="${c.leads||''}"
         oninput="state.calc.leads=this.value;setCalc('leads',this.value)" style="max-width:200px;">
     </div>
     <div class="q-card">
-      <div class="q-hd"><span class="q-num">C2</span><span class="q-txt">¿Qué porcentaje de esos prospectos cierran hoy? (tasa de cierre actual)</span></div>
+      <div class="q-hd"><span class="q-num">S2</span><span class="q-txt">¿Qué porcentaje de esos prospectos cierran hoy?</span></div>
       <div style="display:flex;align-items:center;gap:10px;">
         <input class="fi" type="number" min="0" max="100" placeholder="Ej: 15" value="${c.cierre||''}"
           oninput="state.calc.cierre=this.value;setCalc('cierre',this.value)" style="max-width:200px;">
@@ -912,12 +913,20 @@ function renderCalculadora() {
       </div>
     </div>
     <div class="q-card">
-      <div class="q-hd"><span class="q-num">C3</span><span class="q-txt">¿Cuál es el ticket promedio por venta en MXN?</span></div>
+      <div class="q-hd"><span class="q-num">S3</span><span class="q-txt">¿Cuál es el ticket promedio por venta?</span></div>
       <div style="display:flex;align-items:center;gap:10px;">
         <span style="color:var(--text-3);font-size:13px;">$</span>
         <input class="fi" type="number" min="0" placeholder="Ej: 25000" value="${c.ticket||''}"
           oninput="state.calc.ticket=this.value;setCalc('ticket',this.value)" style="max-width:200px;">
         <span style="color:var(--text-3);font-size:13px;">MXN</span>
+      </div>
+    </div>
+    <div class="q-card" style="border-color:rgba(34,197,94,0.2);">
+      <div class="q-hd"><span class="q-num" style="color:var(--green);">S4</span><span class="q-txt">¿A qué tasa de cierre quieres simular? <span style="color:var(--text-4);font-weight:400;">(define el escenario con el cliente)</span></span></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input class="fi" type="number" min="0" max="100" placeholder="Ej: 30" value="${c.objetivo||''}"
+          oninput="state.calc.objetivo=this.value;setCalc('objetivo',this.value)" style="max-width:200px;border-color:rgba(34,197,94,0.3);">
+        <span style="color:var(--green);font-size:13px;">%</span>
       </div>
     </div>
   </div>
@@ -1194,30 +1203,27 @@ function renderResults() {
     </div>
   </div>`;
 
-  // Loss calculator summary
+  // Simulador de cierre summary
   const calcR = calcPerdida();
   if(calcR) {
     const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
-    html += `<div style="background:#1a0a0a;border:1px solid #3d1010;border-radius:10px;padding:16px 22px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:20px;">
-      <div>
-        <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--red);margin-bottom:4px;">Estimado mensual no capturado</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:36px;color:var(--red);line-height:1;">${fmt(calcR.pesosMes)}</div>
-        <div style="font-size:11px;color:#9a5a5a;margin-top:3px;">${fmt(calcR.pesosAnio)} MXN al año</div>
+    const hasObj = calcR.ventasObj !== null;
+    html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:1fr${hasObj?' 1fr':''};gap:0;">
+        <div style="padding:16px 20px;${hasObj?'border-right:1px solid var(--border)':''}">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-4);margin-bottom:6px;">HOY · ${calcR.cierre}% cierre</div>
+          <div style="font-size:11px;color:var(--text-3);">${Math.round(calcR.ventasHoy)} ventas/mes</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--text-1);line-height:1.1;">${fmt(calcR.ingresosHoy)} MXN</div>
+        </div>
+        ${hasObj ? `<div style="padding:16px 20px;background:rgba(34,197,94,0.05);">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--green);margin-bottom:6px;">SIMULADO · ${calcR.objetivo}% cierre</div>
+          <div style="font-size:11px;color:var(--text-3);">${Math.round(calcR.ventasObj)} ventas/mes</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--green);line-height:1.1;">${fmt(calcR.ingresosObj)} MXN</div>
+        </div>` : ''}
       </div>
-      <div style="display:flex;gap:16px;flex-shrink:0;">
-        <div style="text-align:center;">
-          <div style="font-size:9px;color:var(--text-4);">Cierres actuales</div>
-          <div style="font-size:22px;font-weight:700;color:var(--yellow);">${Math.round(calcR.ventasActuales)}/mes</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:9px;color:var(--text-4);">Proceso sano (40%)</div>
-          <div style="font-size:22px;font-weight:700;color:var(--green);">${Math.round(calcR.ventasSanas)}/mes</div>
-        </div>
-        <div style="text-align:center;">
-          <div style="font-size:9px;color:var(--text-4);">No capturadas</div>
-          <div style="font-size:22px;font-weight:700;color:var(--red);">${Math.round(calcR.ventasPerdidas)}/mes</div>
-        </div>
-      </div>
+      ${hasObj && calcR.difPesos > 0 ? `<div style="padding:10px 20px;background:rgba(34,197,94,0.08);border-top:1px solid rgba(34,197,94,0.15);">
+        <span style="font-size:11px;color:var(--green);font-weight:700;">Diferencia: +${Math.round(calcR.difVentas)} ventas · +${fmt(calcR.difPesos)} MXN al mes</span>
+      </div>` : ''}
     </div>`;
   }
 
@@ -1410,26 +1416,50 @@ function downloadPDF() {
     y += 9;
   });
 
-  // ── LOSS CALCULATOR BOX (if data available) ──
+  // ── SIMULADOR DE CIERRE BOX (if data available) ──
   const calcRes = calcPerdida();
   if(calcRes) {
     const fmt = n => '$' + Math.round(n).toLocaleString('es-MX');
+    const hasObj = calcRes.ventasObj !== null && calcRes.difPesos > 0;
     y += 4;
-    doc.setFillColor(26, 10, 10);
-    doc.roundedRect(14, y, W-28, 28, 4, 4, 'F');
-    doc.setDrawColor(...red);
-    doc.roundedRect(14, y, W-28, 28, 4, 4, 'S');
+    const boxH = hasObj ? 34 : 22;
+    doc.setFillColor(20, 32, 20);
+    doc.roundedRect(14, y, W-28, boxH, 4, 4, 'F');
+    // HOY column
+    const colW = hasObj ? (W-28)/2 : W-28;
     doc.setFont('helvetica','bold');
-    doc.setFontSize(7);
-    doc.setTextColor(...red);
-    doc.text('ESTIMADO MENSUAL NO CAPTURADO', W/2, y+6, {align:'center'});
-    doc.setFontSize(22);
-    doc.setTextColor(...red);
-    doc.text(fmt(calcRes.pesosMes) + ' MXN', W/2, y+16, {align:'center'});
-    doc.setFontSize(7);
-    doc.setTextColor(154, 90, 90);
-    doc.text(`${fmt(calcRes.pesosAnio)} MXN al año  ·  ${Math.round(calcRes.ventasPerdidas)} ventas no capturadas/mes  ·  Tasa actual ${calcRes.cierre}% vs 40% proceso sano`, W/2, y+23, {align:'center'});
-    y += 34;
+    doc.setFontSize(6.5);
+    doc.setTextColor(...textDim);
+    doc.text('HOY — ' + calcRes.cierre + '% de cierre', 20, y+6);
+    doc.setFontSize(8);
+    doc.setTextColor(184,216,184);
+    doc.text(Math.round(calcRes.ventasHoy) + ' ventas/mes', 20, y+12);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.setTextColor(240,253,240);
+    doc.text(fmt(calcRes.ingresosHoy) + ' MXN', 20, y+21);
+    // SIMULADO column
+    if(hasObj) {
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(6.5);
+      doc.setTextColor(...brightG);
+      doc.text('SIMULADO — ' + calcRes.objetivo + '% de cierre', 14 + colW + 6, y+6);
+      doc.setFontSize(8);
+      doc.setTextColor(184,216,184);
+      doc.text(Math.round(calcRes.ventasObj) + ' ventas/mes', 14 + colW + 6, y+12);
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(13);
+      doc.setTextColor(...brightG);
+      doc.text(fmt(calcRes.ingresosObj) + ' MXN', 14 + colW + 6, y+21);
+      // Difference bar
+      doc.setFillColor(14, 40, 14);
+      doc.rect(14, y+boxH-10, W-28, 10, 'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(7);
+      doc.setTextColor(...brightG);
+      doc.text('Diferencia: +' + Math.round(calcRes.difVentas) + ' ventas  ·  +' + fmt(calcRes.difPesos) + ' MXN al mes', W/2, y+boxH-3, {align:'center'});
+    }
+    y += boxH + 6;
   }
 
   // ── PAGE 2 ──────────────────────────────
@@ -1556,7 +1586,7 @@ function newSession() {
   if(!confirm('¿Iniciar una nueva sesión? Los datos actuales se perderán.')) return;
   state.answers = {};
   state.diagnosis = null;
-  state.calc = {leads:'', cierre:'', ticket:''};
+  state.calc = {leads:'', cierre:'', ticket:'', objetivo:''};
   state.currentPage = 0;
   document.getElementById('inp-name').value = '';
   document.getElementById('inp-company').value = '';
